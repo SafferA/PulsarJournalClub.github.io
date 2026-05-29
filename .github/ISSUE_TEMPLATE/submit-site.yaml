@@ -1,0 +1,19 @@
+name: New Paper Submission
+description: Submit a paper to be voted on!
+title: "[Submission]: "
+labels: ["submission"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title of paper
+      placeholder: e.g., pastamarkers: astrophysical data visualization with pasta-like markers
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: arXiv URL
+      placeholder: e.g., https://arxiv.org/abs/2403.20314
+    validations:
+      required: true
