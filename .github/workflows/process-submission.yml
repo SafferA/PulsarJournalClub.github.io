@@ -60,8 +60,8 @@ jobs:
               // Extract username and repo to build the exact live site URL dynamically
               const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\.]+)/);
               if (match) {
-                const user = match[1];
-                const repo = match[2];
+                const user = match[1].toLowerCase();
+                const repo = match[2].toLowerCase();
                 const liveUrl = 'https://' + user + '.github.io/' + repo + '/';
                 
                 const commentText = '### ✅ Your vote has been safely counted!\\n\\nThank you for participating. Click the button below to head straight back to the live rankings:\\n\\n[**⬅️ Return to Live Leaderboard**](' + liveUrl + ')';
