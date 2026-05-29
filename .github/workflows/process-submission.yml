@@ -1,33 +1,63 @@
-name: Process Website Submission
+name: Process Website Submission and Votes
 
 on:
   issues:
     types: [opened]
 
 jobs:
-  add-site:
+  manage-platform:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
-    steps:
+      issues: write
+      
+steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Update sites.json
+      - name: Process Issue Data
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node -e "
           const fs = require('fs');
+          const { execSync } = require('child_process');
           
           const title = process.env.ISSUE_TITLE.trim();
           const body = process.env.ISSUE_BODY;
-          const issueNumber = process.env.ISSUE_NUMBER;
+          const currentIssueNum = process.env.ISSUE_NUMBER;
           
-          // 1. Ultra-forgiving URL Finder (Looks for anything resembling a website link in the text)
+          let sites = [];
+          if (fs.existsSync('sites.json')) {
+            sites = JSON.parse(fs.readFileSync('sites.json', 'utf8'));
+          }
+          
+          // CASE 1: Processing an incoming VOTE
+          if (title.startsWith('[Vote]: For Issue #')) {
+            const targetIssueNum = parseInt(title.replace('[Vote]: For Issue #', ''));
+            
+            const siteIndex = sites.findIndex(s => s.issue_number === targetIssueNum);
+            if (siteIndex !== -1) {
+              if (!sites[siteIndex].votes) sites[siteIndex].votes = 0;
+              sites[siteIndex].votes += 1;
+              console.log('Incremented vote for issue #' + targetIssueNum);
+            }
+            
+            fs.writeFileSync('sites.json', JSON.stringify(sites, null, 2));
+            
+            // Clean up: Close the ballot issue automatically so your repo stays tidy!
+            try {
+              execSync('gh issue close ' + currentIssueNum + ' --reason \"completed\"');
+            } catch (e) {
+              console.log('Could not auto-close issue:', e.message);
+            }
+            process.exit(0);
+          }
+          
+          // CASE 2: Processing a brand NEW SITE submission
           function extractUrl(text) {
             const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
             const match = text.match(urlRegex);
@@ -36,31 +66,21 @@ jobs:
           
           const siteUrl = extractUrl(body);
           
-          console.log('Detected Title:', title);
-          console.log('Detected URL:', siteUrl);
-          
-          // 2. Safety Check: If they didn't even provide a link, we can't display it
           if (!siteUrl) {
-            console.error('Error: Could not find a valid web link anywhere in the issue text.');
+            console.error('Error: No valid URL found in submission.');
             process.exit(1);
           }
           
-          // 3. Process and append data safely
-          let sites = [];
-          if (fs.existsSync('sites.json')) {
-            sites = JSON.parse(fs.readFileSync('sites.json', 'utf8'));
-          }
-          
-          // Prevent exact duplicate links
           if (sites.some(s => s.url === siteUrl)) {
-            console.log('This link has already been submitted!');
+            console.log('Site already exists!');
             process.exit(0);
           }
           
           sites.push({
             title: title,
             url: siteUrl,
-            issue_number: parseInt(issueNumber)
+            issue_number: parseInt(currentIssueNum),
+            votes: 0
           });
           
           fs.writeFileSync('sites.json', JSON.stringify(sites, null, 2));
@@ -71,5 +91,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add sites.json
-          git commit -m "Automated: Logged entry from Issue #${{ github.event.issue.number }}"
+          git commit -m "Automated Data Update [skip ci]"
           git push
