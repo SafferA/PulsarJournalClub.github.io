@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Reaction Voter</title>
+    <title>Instant Vote Ranker</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans min-h-screen pb-12">
@@ -12,9 +12,9 @@
         <header class="flex justify-between items-center border-b border-gray-300 pb-6 mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-indigo-600">GitRank</h1>
-                <p class="text-gray-600">Powered entirely by GitHub Issues & Reactions.</p>
+                <p class="text-gray-600">Instant, zero-account voting powered by CounterAPI.</p>
             </div>
-            <a href="https://github.com/SafferA/PulsarJournalClub.github.io/issues/new?template=submit-site.yml" 
+            <a href="https://github.com/SafferA/PulsarJournalClub.github.io/issues/new" 
                target="_blank" 
                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition">
                 + Submit Your Site
@@ -22,18 +22,17 @@
         </header>
 
         <main id="sites-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <p class="text-gray-500">Loading websites and counting votes...</p>
+            <p class="text-gray-500">Loading websites and tallying live votes...</p>
         </main>
     </div>
 
     <script>
-        // CONFIGURATION: Set your repo details here
-        const USERNAME = "SafferA";
-        const REPO = "PulsarJournalClub.github.io";
+        // CONFIGURATION: Set your unique workspace name here (use letters, numbers, hyphens)
+        const WORKSPACE = "pulsar-journal-voter"; 
 
         async function init() {
             try {
-                // 1. Fetch the sites from your local json file
+                // 1. Fetch the basic site info from your repository's database file
                 const response = await fetch('./sites.json');
                 const sites = await response.json();
 
@@ -41,32 +40,31 @@
                 container.innerHTML = ''; 
 
                 if (sites.length === 0) {
-                    container.innerHTML = `<p class="col-span-2 text-center text-gray-500 py-8">No submissions yet. Click the button above to add one!</p>`;
+                    container.innerHTML = `<p class="col-span-2 text-center text-gray-500 py-8">No submissions yet.</p>`;
                     return;
                 }
 
-                // 2. Query GitHub's public API for open submission issues
-                const ghResponse = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/issues?labels=submission&state=open&per_page=100`);
-                const issues = await ghResponse.json();
-
-                // Map out how many thumbs up each issue has received
-                const reactionLookup = {};
-                if (Array.isArray(issues)) {
-                    issues.forEach(issue => {
-                        const thumbsUp = issue.reactions ? issue.reactions['+1'] : 0;
-                        reactionLookup[issue.number] = thumbsUp;
-                    });
-                }
-
-                // 3. Attach those vote totals to our sites array
-                sites.forEach(site => {
-                    site.votes = reactionLookup[site.issue_number] || 0;
+                // 2. Fetch live vote tallies for each site simultaneously
+                const fetchVotesPromises = sites.map(async (site) => {
+                    // Each site gets its own unique tracking ID based on its issue number
+                    const key = `site-issue-${site.issue_number}`;
+                    try {
+                        const res = await fetch(`https://api.counterapi.dev/v1/${WORKSPACE}/${key}`);
+                        const data = await res.json();
+                        site.votes = data.count || 0;
+                    } catch (e) {
+                        // If the counter doesn't exist yet, CounterAPI returns a 404, which means 0 votes
+                        site.votes = 0;
+                    }
                 });
 
-                // 4. Sort the sites array dynamically based on popularity
+                // Wait for all counts to return
+                await Promise.all(fetchVotesPromises);
+
+                // 3. Sort sites dynamically by popularity
                 sites.sort((a, b) => b.votes - a.votes);
 
-                // 5. Render cards to screen
+                // 4. Render the site cards with an instant-vote action
                 sites.forEach(site => {
                     const card = document.createElement('div');
                     card.className = "bg-white p-6 rounded-xl shadow-md border border-gray-200 flex justify-between items-center hover:shadow-lg transition";
@@ -75,20 +73,48 @@
                             <h3 class="text-xl font-bold text-gray-800">${site.title}</h3>
                             <a href="${site.url}" target="_blank" class="text-indigo-500 hover:underline text-sm break-all">${site.url}</a>
                         </div>
-                        <a href="https://github.com/${USERNAME}/${REPO}/issues/${site.issue_number}" 
-                           target="_blank" 
-                           class="flex flex-col items-center bg-gray-50 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-400 p-3 rounded-lg transition group"
-                           title="Click to vote on GitHub!">
-                            <span class="text-xl group-hover:scale-110 transition-transform">👍</span>
-                            <span class="text-sm font-semibold text-gray-700 mt-1">${site.votes}</span>
-                        </a>
+                        
+                        <button onclick="castVote('${site.issue_number}', this)" 
+                                class="flex flex-col items-center bg-gray-50 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-400 p-3 rounded-lg transition group min-w-[75px] cursor-pointer">
+                            <span class="text-xl group-hover:scale-125 transition-transform">👍</span>
+                            <span class="count-display text-sm font-bold text-gray-700 mt-1">${site.votes}</span>
+                        </button>
                     `;
                     container.appendChild(card);
                 });
 
             } catch (err) {
                 console.error("Application error:", err);
-                document.getElementById('sites-container').innerHTML = `<p class="text-red-500">Failed to sync live data from GitHub.</p>`;
+                document.getElementById('sites-container').innerHTML = `<p class="text-red-500">Failed to sync live data.</p>`;
+            }
+        }
+
+        // 5. The Instant Voting Engine
+        async function castVote(issueNumber, buttonElement) {
+            // Prevent spam double-clicks while the request is processing
+            buttonElement.disabled = true;
+            
+            const key = `site-issue-${issueNumber}`;
+            const countDisplay = buttonElement.querySelector('.count-display');
+            
+            try {
+                // Call CounterAPI's "up" endpoint to increment the counter by 1
+                const res = await fetch(`https://api.counterapi.dev/v1/${WORKSPACE}/${key}/up`);
+                const data = await res.json();
+                
+                // Update the UI text immediately!
+                if (data && data.count !== undefined) {
+                    countDisplay.textContent = data.count;
+                    
+                    // Optional visual feedback
+                    buttonElement.classList.remove('bg-gray-50');
+                    buttonElement.classList.add('bg-green-50', 'border-green-400');
+                }
+            } catch (err) {
+                console.error("Voting failed:", err);
+            } finally {
+                // Re-enable the button
+                buttonElement.disabled = false;
             }
         }
 
