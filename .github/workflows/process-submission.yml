@@ -14,12 +14,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # We deleted the broken zofrex action step completely!
-
       - name: Update sites.json
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue. those values are hidden inside github.event.issue.body }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           node -e "
@@ -36,12 +34,10 @@ jobs:
           }
           
           // 2. Custom robust Markdown parser for GitHub Issue Forms
-          // It looks for headers like '### Website Title' or '### Website URL' and grabs the text below them
           function getFieldValue(markdown, fieldName) {
             const lines = markdown.split(/\r?\n/);
             for (let i = 0; i < lines.length; i++) {
               if (lines[i].trim().includes('### ' + fieldName)) {
-                // The answer is usually a line or two down, ignoring blank lines
                 for (let j = i + 1; j < lines.length; j++) {
                   const val = lines[j].trim();
                   if (val && !val.startsWith('###')) return val;
