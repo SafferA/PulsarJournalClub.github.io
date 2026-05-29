@@ -2,6 +2,7 @@
   {
     "title": "Test Title",
     "url": "www.arxiv.org",
-    "issue_number": 9
+    "issue_number": 9,
+    "votes": 1
   }
 ]
