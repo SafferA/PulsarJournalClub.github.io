@@ -36,7 +36,7 @@ jobs:
           }
           
           // CASE 1: Processing an incoming VOTE
-          if (title.startsWith('[Vote]: For Issue #')) {
+          if (title.startsWith('[Vote]: ')) {
             const targetIssueNum = parseInt(title.replace('[Vote]: For Issue #', ''));
             
             const siteIndex = sites.findIndex(s => s.issue_number === targetIssueNum);
