@@ -56,18 +56,10 @@ jobs:
             
             // 1. Leave a helpful post-submission redirect comment for the user
             try {
-              const repoUrl = execSync('git config --get remote.origin.url').toString().trim();
-              // Extract username and repo to build the exact live site URL dynamically
-              const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\.]+)/);
-              if (match) {
-                const user = match[1].toLowerCase();
-                const repo = match[2].toLowerCase();
-                const liveUrl = 'https://' + user + '.github.io/' + repo + '/';
-                
-                const commentText = '### ✅ Your vote has been safely counted!\\n\\nThank you for participating. Click the button below to head straight back to the live rankings:\\n\\n[**⬅️ Return to Live Leaderboard**](' + liveUrl + ')';
-                
-                execSync('gh issue comment ' + currentIssueNum + ' --body \"' + commentText + '\"');
-              }
+              const liveUrl = 'https://saffera.github.io/PulsarJournalClub.github.io/';
+              const commentText = '### ✅ Your vote has been safely counted!\\n\\nThank you for participating. Click the button below to head straight back to the live rankings:\\n\\n[**⬅️ Return to Live Leaderboard**](' + liveUrl + ')';
+  
+              execSync('gh issue comment ' + currentIssueNum + ' --body \"' + commentText + '\"');
             } catch (err) {
               console.log('Could not post return comment:', err.message);
             }
