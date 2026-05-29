@@ -14,48 +14,65 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Parse Issue Form
-        id: parse
-        uses: zofrex/issue-forms-body-parser@v1
-        with:
-          issue_id: ${{ github.event.issue.number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # We deleted the broken zofrex action step completely!
 
       - name: Update sites.json
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_DATA: ${{ steps.parse.outputs.json }}
+          ISSUE_BODY: ${{ github.event.issue. those values are hidden inside github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           node -e "
           const fs = require('fs');
           
-          // 1. Grab values safely from environment variables
           const title = process.env.ISSUE_TITLE;
+          const body = process.env.ISSUE_BODY;
           const issueNumber = process.env.ISSUE_NUMBER;
           
-          // 2. Double check that this is actually a website submission
+          // 1. Double check that this is actually a website submission
           if (!title.startsWith('[Submission]:')) {
             console.log('Not a submission issue. Exiting safely.');
             process.exit(0);
           }
           
-          // 3. Process the data safely
-          const issueData = JSON.parse(process.env.ISSUE_DATA);
+          // 2. Custom robust Markdown parser for GitHub Issue Forms
+          // It looks for headers like '### Website Title' or '### Website URL' and grabs the text below them
+          function getFieldValue(markdown, fieldName) {
+            const lines = markdown.split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].trim().includes('### ' + fieldName)) {
+                // The answer is usually a line or two down, ignoring blank lines
+                for (let j = i + 1; j < lines.length; j++) {
+                  const val = lines[j].trim();
+                  if (val && !val.startsWith('###')) return val;
+                }
+              }
+            }
+            return '';
+          }
           
+          const siteTitle = getFieldValue(body, 'Website Title');
+          const siteUrl = getFieldValue(body, 'Website URL');
+          
+          if (!siteTitle || !siteUrl) {
+            console.error('Error: Could not parse Title or URL from issue body.');
+            process.exit(1);
+          }
+          
+          // 3. Process the data safely
           let sites = [];
           if (fs.existsSync('sites.json')) {
             sites = JSON.parse(fs.readFileSync('sites.json', 'utf8'));
           }
           
-          if (sites.some(s => s.url === issueData.url)) {
+          if (sites.some(s => s.url === siteUrl)) {
             console.log('Site already exists!');
             process.exit(0);
           }
           
           sites.push({
-            title: issueData.title.trim(),
-            url: issueData.url.trim(),
+            title: siteTitle,
+            url: siteUrl,
             issue_number: parseInt(issueNumber)
           });
           
