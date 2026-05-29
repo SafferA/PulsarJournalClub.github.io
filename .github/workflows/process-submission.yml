@@ -22,22 +22,26 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update sites.json
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_DATA: ${{ steps.parse.outputs.json }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           node -e "
           const fs = require('fs');
           
-          // 1. Double check that this is actually a website submission
-          const labels = ${{ JSON.stringify(github.event.issue.labels) }};
-          const title = '${{ github.event.issue.title }}';
-          const isSubmission = labels.some(l => l.name === 'submission') || title.startsWith('[Submission]:');
+          // 1. Grab values safely from environment variables
+          const title = process.env.ISSUE_TITLE;
+          const issueNumber = process.env.ISSUE_NUMBER;
           
-          if (!isSubmission) {
+          // 2. Double check that this is actually a website submission
+          if (!title.startsWith('[Submission]:')) {
             console.log('Not a submission issue. Exiting safely.');
             process.exit(0);
           }
           
-          // 2. Process the data safely
-          const issueData = ${{ steps.parse.outputs.json }};
+          // 3. Process the data safely
+          const issueData = JSON.parse(process.env.ISSUE_DATA);
           
           let sites = [];
           if (fs.existsSync('sites.json')) {
@@ -52,7 +56,7 @@ jobs:
           sites.push({
             title: issueData.title.trim(),
             url: issueData.url.trim(),
-            issue_number: ${{ github.event.issue.number }}
+            issue_number: parseInt(issueNumber)
           });
           
           fs.writeFileSync('sites.json', JSON.stringify(sites, null, 2));
