@@ -59,8 +59,8 @@
                             <h3 class="text-xl font-bold text-gray-800">${site.title}</h3>
                             <a href="${site.url}" target="_blank" class="text-indigo-500 hover:underline text-sm break-all">${site.url}</a>
                         </div>
-                        
-                        <a href="https://github.com/${USERNAME}/${REPO}/issues/new?title=%5BVote%5D%3A+For+Issue+%23${site.issue_number}&body=Voting+for+this+site+via+one-click." 
+        
+                        <a href="https://github.com/${USERNAME}/${REPO}/issues/new?title=%5BVote%5D%3A+${encodeURIComponent(site.title)}&body=Tracking+ID%3A+${site.issue_number}" 
                            target="_blank" 
                            class="flex flex-col items-center bg-gray-50 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-400 p-3 rounded-lg transition group min-w-[75px]">
                             <span class="text-xl group-hover:scale-125 transition-transform">👍</span>
