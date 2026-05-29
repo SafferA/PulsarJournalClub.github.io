@@ -1,18 +1,82 @@
-sites.forEach(site => {
-    const card = document.createElement('div');
-    card.className = "bg-white p-6 rounded-xl shadow-md border border-gray-200 flex justify-between items-center hover:shadow-lg transition";
-    card.innerHTML = `
-        <div>
-            <h3 class="text-xl font-bold text-gray-800">${site.title}</h3>
-            <a href="${site.url}" target="_blank" class="text-indigo-500 hover:underline text-sm break-all">${site.url}</a>
-        </div>
-        
-        <a href="https://github.com/${USERNAME}/${REPO}/issues/new?title=%5BVote%5D%3A+For+Issue+%23${site.issue_number}&body=Voting+for+this+site+via+one-click." 
-           target="_blank" 
-           class="flex flex-col items-center bg-gray-50 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-400 p-3 rounded-lg transition group min-w-[75px]">
-            <span class="text-xl group-hover:scale-125 transition-transform">👍</span>
-            <span class="text-sm font-bold text-gray-700 mt-1">${site.votes || 0}</span>
-        </a>
-    `;
-    container.appendChild(card);
-});
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitRank Leaderboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans min-h-screen pb-12">
+
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <header class="flex justify-between items-center border-b border-gray-300 pb-6 mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-indigo-600">GitRank</h1>
+                <p class="text-gray-600">Submit websites and upvote your favorites!</p>
+            </div>
+            <a id="submit-btn" href="#" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition">
+                + Submit Your Site
+            </a>
+        </header>
+
+        <main id="sites-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <p class="text-gray-500">Loading websites and counting votes...</p>
+        </main>
+    </div>
+
+    <script>
+        // 1. CONFIGURATION: Change these to match your exact GitHub details
+        const USERNAME = "YOUR_GITHUB_USERNAME"; 
+        const REPO = "YOUR_REPO_NAME"; 
+
+        // Set the submission button target dynamically
+        document.getElementById('submit-btn').href = `https://github.com/${USERNAME}/${REPO}/issues/new`;
+
+        async function init() {
+            try {
+                const container = document.getElementById('sites-container');
+                
+                // 2. Fetch data from your automated local database file
+                const response = await fetch('./sites.json');
+                const sites = await response.json();
+
+                container.innerHTML = ''; 
+
+                if (!sites || sites.length === 0) {
+                    container.innerHTML = `<p class="col-span-2 text-center text-gray-500 py-8">No submissions yet.</p>`;
+                    return;
+                }
+
+                // 3. Sort sites so the highest vote counts bubble up to the top automatically
+                sites.sort((a, b) => (b.votes || 0) - (a.votes || 0));
+
+                // 4. Construct and render the interactive cards
+                sites.forEach(site => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-6 rounded-xl shadow-md border border-gray-200 flex justify-between items-center hover:shadow-lg transition";
+                    card.innerHTML = `
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">${site.title}</h3>
+                            <a href="${site.url}" target="_blank" class="text-indigo-500 hover:underline text-sm break-all">${site.url}</a>
+                        </div>
+                        
+                        <a href="https://github.com/${USERNAME}/${REPO}/issues/new?title=%5BVote%5D%3A+For+Issue+%23${site.issue_number}&body=Voting+for+this+site+via+one-click." 
+                           target="_blank" 
+                           class="flex flex-col items-center bg-gray-50 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-400 p-3 rounded-lg transition group min-w-[75px]">
+                            <span class="text-xl group-hover:scale-125 transition-transform">👍</span>
+                            <span class="text-sm font-bold text-gray-700 mt-1">${site.votes || 0}</span>
+                        </a>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error("Initialization failed:", err);
+                document.getElementById('sites-container').innerHTML = `<p class="text-red-500">Error reading data feed.</p>`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
