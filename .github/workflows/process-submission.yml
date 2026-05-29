@@ -33,22 +33,19 @@ jobs:
             process.exit(0);
           }
           
-          // 2. Custom robust Markdown parser for GitHub Issue Forms
+          // 2. Ultra-forgiving Regex Markdown Parser
           function getFieldValue(markdown, fieldName) {
-            const lines = markdown.split(/\r?\n/);
-            for (let i = 0; i < lines.length; i++) {
-              if (lines[i].trim().includes('### ' + fieldName)) {
-                for (let j = i + 1; j < lines.length; j++) {
-                  const val = lines[j].trim();
-                  if (val && !val.startsWith('###')) return val;
-                }
-              }
-            }
-            return '';
+            // This matches '### fieldName', skips whitespace/newlines, and captures everything up to the next '###' or end of string
+            const regex = new RegExp('###\\\\s+' + fieldName + '\\\\s+([\\\\s\\\\S]*?)(?=\\\\s*###|$)', 'i');
+            const match = markdown.match(regex);
+            return match ? match[1].trim() : '';
           }
           
           const siteTitle = getFieldValue(body, 'Website Title');
           const siteUrl = getFieldValue(body, 'Website URL');
+          
+          console.log('Parsed Title:', siteTitle);
+          console.log('Parsed URL:', siteUrl);
           
           if (!siteTitle || !siteUrl) {
             console.error('Error: Could not parse Title or URL from issue body.');
