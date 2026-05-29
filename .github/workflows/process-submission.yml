@@ -1,0 +1,56 @@
+name: Process Website Submission
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  add-site:
+    if: contains(github.event.issue.labels.*.name, 'submission')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Parse Issue Form
+        id: parse
+        uses: zofrex/issue-forms-body-parser@v1
+        with:
+          issue_id: ${{ github.event.issue.number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update sites.json
+        run: |
+          node -e "
+          const fs = require('fs');
+          const issueData = ${{ steps.parse.outputs.json }};
+          
+          let sites = [];
+          if (fs.existsSync('sites.json')) {
+            sites = JSON.parse(fs.readFileSync('sites.json', 'utf8'));
+          }
+          
+          if (sites.some(s => s.url === issueData.url)) {
+            console.log('Site already exists!');
+            process.exit(0);
+          }
+          
+          sites.push({
+            title: issueData.title.trim(),
+            url: issueData.url.trim(),
+            issue_number: ${{ github.event.issue.number }}
+          });
+          
+          fs.writeFileSync('sites.json', JSON.stringify(sites, null, 2));
+          "
+
+      - name: Commit and Push to Repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add sites.json
+          git commit -m "Automated: Logged entry from Issue #${{ github.event.issue.number }}"
+          git push
